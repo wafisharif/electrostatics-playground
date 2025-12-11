@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Electrostatic Playground</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.2/p5.min.js"></script>
+</head>
+
+<body>
+
+    <!-- LEFT TOOLBAR -->
+    <div id="toolbar-left">
+        <div class="toolbar-title">TOOLS</div>
+
+        <button class="tool-btn" id="tool-add-plus">Add + Charge</button>
+        <button class="tool-btn" id="tool-add-minus">Add – Charge</button>
+        <button class="tool-btn" id="tool-add-random">Add Random</button>
+
+        <div class="toolbar-separator"></div>
+
+        <button class="tool-btn" id="tool-select">Select / Move</button>
+        <button class="tool-btn" id="tool-erase">Erase</button>
+
+        <div class="toolbar-separator"></div>
+
+        <!-- NEW: Electric Field Toggle -->
+        <button class="tool-btn" id="toggle-field">Show Electric Field</button>
+        <button class="tool-btn" id="toggle-lines">Show Field Lines</button>
+
+        <div class="toolbar-separator"></div>
+
+        <button class="tool-btn danger" id="tool-clear">Clear All</button>
+    </div>
+
+
+
+    <!-- CENTER CANVAS -->
+    <div id="canvas-container"></div>
+
+
+
+    <!-- RIGHT CONTROLS PANEL -->
+    <div id="controls-right">
+
+        <div class="controls-title">PHYSICS CONTROLS</div>
+
+        <div class="control-group">
+            <label for="slider-k">kCoulomb</label>
+            <input type="range" id="slider-k" min="100" max="5000" value="800">
+            <span id="value-k">800</span>
+        </div>
+
+        <div class="control-group">
+            <label for="slider-friction">Friction</label>
+            <input type="range" id="slider-friction" min="0" max="0.1" step="0.001" value="0.02">
+            <span id="value-friction">0.02</span>
+        </div>
+
+        <div class="control-group">
+            <label for="slider-minDist">Min Distance</label>
+            <input type="range" id="slider-minDist" min="2" max="20" value="8">
+            <span id="value-minDist">8</span>
+        </div>
+
+        <div class="controls-title">SIMULATION INFO</div>
+
+        <div class="info-block" id="info-particles">Particles: 0</div>
+        <div class="info-block" id="info-positive">Positive: 0</div>
+        <div class="info-block" id="info-negative">Negative: 0</div>
+        <div class="info-block" id="info-tool">Active Tool: Add + Charge</div>
+
+    </div>
+
+    <script src="sketch.js"></script>
+
+</body>
+</html>
