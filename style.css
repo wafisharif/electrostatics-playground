@@ -1,0 +1,128 @@
+/* ==============================
+   GLOBAL PAGE LAYOUT
+================================*/
+
+body {
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: row;
+    height: 100vh;
+    background: #05070a;
+    color: #e5e5e5;
+    font-family: system-ui, sans-serif;
+    overflow: hidden;
+}
+
+/* Left Toolbar */
+#toolbar-left {
+    width: 200px;
+    background: #0c0f13;
+    border-right: 1px solid #1a1f27;
+    display: flex;
+    flex-direction: column;
+    padding: 15px;
+}
+
+.toolbar-title {
+    font-size: 14px;
+    font-weight: 600;
+    margin-bottom: 10px;
+    color: #9ba4b4;
+}
+
+.toolbar-separator {
+    width: 100%;
+    height: 1px;
+    background: #242a33;
+    margin: 12px 0;
+}
+
+/* Buttons */
+.tool-btn {
+    width: 100%;
+    padding: 10px;
+    margin-bottom: 8px;
+    background: #14181f;
+    color: #ffffff;
+    border: 1px solid #1f242d;
+    cursor: pointer;
+    text-align: left;
+    font-size: 13px;
+    transition: background 0.1s, border-color 0.1s;
+}
+
+.tool-btn:hover {
+    background: #1c212a;
+    border-color: #2c3644;
+}
+
+.tool-btn.active {
+    background: #243043;
+    border-color: #376195;
+}
+
+.tool-btn.danger {
+    color: #ff7373;
+    border-color: #933636;
+}
+
+.tool-btn.danger:hover {
+    background: #2a1212;
+}
+
+/* Canvas Area */
+#canvas-container {
+    flex-grow: 1;
+    position: relative;
+}
+
+/* Right Controls Panel */
+#controls-right {
+    width: 260px;
+    background: #0c0f13;
+    border-left: 1px solid #1a1f27;
+    padding: 15px;
+    overflow-y: auto;
+}
+
+.controls-title {
+    color: #9ba4b4;
+    font-size: 14px;
+    margin: 15px 0 10px;
+}
+
+.control-group {
+    margin-bottom: 15px;
+}
+
+label {
+    font-size: 13px;
+}
+
+input[type="range"] {
+    width: 100%;
+}
+
+.info-block {
+    font-size: 13px;
+    margin-bottom: 6px;
+}
+
+
+
+/* ===========================================
+   FIXED CANVAS INTERACTION LAYER
+   Ensures the canvas receives mouse input
+=========================================== */
+
+#canvas-container {
+    position: relative;
+    z-index: 10;
+}
+
+#canvas-container canvas {
+    position: relative;
+    z-index: 9999;
+    pointer-events: auto;
+}
