@@ -1,6 +1,10 @@
 // ==========================
 // GLOBALS
 // ==========================
+// Field probe
+let showFieldProbe = false;
+let probePos = null;
+
 
 let particles = [];
 let activeTool = null;        
@@ -16,6 +20,8 @@ let hasPlacedParticle = false;
 // Visualization toggles
 let showElectricField = false;
 let showFieldLines = false;
+let showElectricHeatmap = false;
+let showEquipotentials = false;   // NEW: equipotential contours
 
 // Physics parameters
 let globalFriction = 0.02;
@@ -26,6 +32,14 @@ let minDistance = 8;
 let numLinesPerCharge = 32;        // VERY dense
 let streamlineStep = 2.2;
 let maxStreamlineLen = 600;
+
+// Potential grid for heatmap + contours
+let heatmapSpacing = 10;
+let potentialGrid = [];
+let potCols = 0;
+let potRows = 0;
+let potMin = 0;
+let potMax = 1;
 
 
 
@@ -115,7 +129,7 @@ function computeElectricFieldAtPoint(x, y) {
     let ry = y - p.pos.y;
     let r2 = rx*rx + ry*ry;
 
-    if (r2 < minDistance*minDistance) continue;
+    if (r2 < minDistance*minDistance) continue; // avoid extremely small distances
 
     let r = Math.sqrt(r2);
     let E = (kCoulomb * p.charge) / r2;
@@ -125,6 +139,124 @@ function computeElectricFieldAtPoint(x, y) {
   }
 
   return createVector(Ex, Ey);
+}
+
+
+
+// ==========================
+// ELECTRIC POTENTIAL CALC
+// ==========================
+function computeElectricPotentialAtPoint(x, y) {
+  let potential = 0;
+
+  for (let p of particles) {
+    let rx = x - p.pos.x;
+    let ry = y - p.pos.y;
+    let r2 = rx * rx + ry * ry;
+
+    if (r2 < minDistance * minDistance) continue;
+
+    let r = Math.sqrt(r2);
+    potential += (kCoulomb * p.charge) / r;
+  }
+
+  return potential;
+}
+
+
+
+// ==========================
+// POTENTIAL GRID (for heatmap & contours)
+// ==========================
+function recomputePotentialGrid() {
+  potCols = Math.floor(width / heatmapSpacing) + 1;
+  potRows = Math.floor(height / heatmapSpacing) + 1;
+
+  potentialGrid = new Array(potCols);
+  potMin = Infinity;
+  potMax = -Infinity;
+
+  for (let i = 0; i < potCols; i++) {
+    potentialGrid[i] = new Array(potRows);
+    let x = i * heatmapSpacing;
+
+    for (let j = 0; j < potRows; j++) {
+      let y = j * heatmapSpacing;
+      let V = computeElectricPotentialAtPoint(x, y);
+      potentialGrid[i][j] = V;
+      if (V < potMin) potMin = V;
+      if (V > potMax) potMax = V;
+    }
+  }
+
+  // Avoid degenerate range
+  if (!isFinite(potMin) || !isFinite(potMax) || potMax === potMin) {
+    potMin = 0;
+    potMax = 1;
+  }
+}
+
+
+
+// ==========================
+// DRAW ELECTRIC FIELD (VECTOR ARROWS)
+// ==========================
+function drawElectricField() {
+  let spacing = 30;
+  stroke(180, 180, 220, 120);
+  strokeWeight(1);
+
+  for (let x = spacing/2; x < width; x += spacing) {
+    for (let y = spacing/2; y < height; y += spacing) {
+
+      let E = computeElectricFieldAtPoint(x, y);
+      let scale = 0.0008;
+
+      let ex = E.x * scale;
+      let ey = E.y * scale;
+
+      line(x, y, x + ex, y + ey);
+
+      push();
+      translate(x + ex, y + ey);
+      rotate(atan2(ey, ex));
+      line(0, 0, -5, -2);
+      line(0, 0, -5, 2);
+      pop();
+    }
+  }
+}
+
+
+
+// ==========================
+// DRAW ELECTRIC POTENTIAL HEATMAP
+// ==========================
+function drawElectricPotentialHeatmap() {
+  if (!potentialGrid.length) return;
+
+  noStroke();
+
+  for (let i = 0; i < potCols - 1; i++) {
+    for (let j = 0; j < potRows - 1; j++) {
+      let V = potentialGrid[i][j];
+
+      // Normalize V to [0, 1]
+      let t = map(V, potMin, potMax, 0, 1);
+      t = constrain(t, 0, 1);
+
+      // Color: high potential = warm, low = cool
+      let r = lerp(0, 255, t);
+      let g = lerp(0, 80, t);
+      let b = lerp(255, 0, t);
+
+      fill(r, g, b, 120);
+
+      let x = i * heatmapSpacing;
+      let y = j * heatmapSpacing;
+      rect(x, y, heatmapSpacing, heatmapSpacing);
+    }
+  }
 }
 
 
@@ -163,7 +295,6 @@ function traceStreamline(startX, startY) {
   return pts;
 }
 
-
 function drawFieldLines() {
   stroke(255, 255, 180, 90);
   strokeWeight(1);
@@ -190,32 +321,140 @@ function drawFieldLines() {
 
 
 // ==========================
-// FIELD VECTORS (existing)
+// EQUIPOTENTIAL CONTOURS (MARCHING SQUARES)
 // ==========================
-function drawElectricField() {
-  let spacing = 30;
-  stroke(180, 180, 220, 120);
+function interpolateIso(x1, y1, v1, x2, y2, v2, level) {
+  if (v1 === v2) return createVector(x1, y1);
+  let t = (level - v1) / (v2 - v1);
+  t = constrain(t, 0, 1);
+  return createVector(lerp(x1, x2, t), lerp(y1, y2, t));
+}
+
+function drawEquipotentialContours() {
+  if (!potentialGrid.length) return;
+
+  let numLevels = 10;
+  if (potMax <= potMin) return;
+
+  // Edge lookup for marching squares
+  const edgeTable = {
+    1:  [[3, 0]],
+    2:  [[0, 1]],
+    3:  [[3, 1]],
+    4:  [[1, 2]],
+    5:  [[3, 0], [1, 2]],
+    6:  [[0, 2]],
+    7:  [[3, 2]],
+    8:  [[2, 3]],
+    9:  [[0, 2]],
+    10: [[0, 1], [2, 3]],
+    11: [[1, 3]],
+    12: [[1, 3]],
+    13: [[0, 1]],
+    14: [[2, 3]]
+  };
+
+  stroke(255, 255, 255, 120);
   strokeWeight(1);
+  noFill();
 
-  for (let x = spacing/2; x < width; x += spacing) {
-    for (let y = spacing/2; y < height; y += spacing) {
+  for (let l = 0; l < numLevels; l++) {
+    let t = (l + 1) / (numLevels + 1);
+    let level = lerp(potMin, potMax, t);
 
-      let E = computeElectricFieldAtPoint(x, y);
-      let scale = 0.0008;
+    for (let i = 0; i < potCols - 1; i++) {
+      for (let j = 0; j < potRows - 1; j++) {
 
-      let ex = E.x * scale;
-      let ey = E.y * scale;
+        let x0 = i * heatmapSpacing;
+        let y0 = j * heatmapSpacing;
 
-      line(x, y, x + ex, y + ey);
+        let v0 = potentialGrid[i][j];         // top-left
+        let v1 = potentialGrid[i+1][j];       // top-right
+        let v2 = potentialGrid[i+1][j+1];     // bottom-right
+        let v3 = potentialGrid[i][j+1];       // bottom-left
 
-      push();
-      translate(x + ex, y + ey);
-      rotate(atan2(ey, ex));
-      line(0, 0, -5, -2);
-      line(0, 0, -5, 2);
-      pop();
+        let idx = 0;
+        if (v0 >= level) idx |= 1;
+        if (v1 >= level) idx |= 2;
+        if (v2 >= level) idx |= 4;
+        if (v3 >= level) idx |= 8;
+
+        if (idx === 0 || idx === 15) continue;
+
+        let segs = edgeTable[idx];
+        if (!segs) continue;
+
+        for (let s = 0; s < segs.length; s++) {
+          let e0 = segs[s][0];
+          let e1 = segs[s][1];
+
+          let pA, pB;
+
+          // Edge 0: top (v0-v1)
+          if (e0 === 0) pA = interpolateIso(x0, y0, v0, x0+heatmapSpacing, y0, v1, level);
+          else if (e0 === 1) pA = interpolateIso(x0+heatmapSpacing, y0, v1, x0+heatmapSpacing, y0+heatmapSpacing, v2, level);
+          else if (e0 === 2) pA = interpolateIso(x0+heatmapSpacing, y0+heatmapSpacing, v2, x0, y0+heatmapSpacing, v3, level);
+          else if (e0 === 3) pA = interpolateIso(x0, y0+heatmapSpacing, v3, x0, y0, v0, level);
+
+          if (e1 === 0) pB = interpolateIso(x0, y0, v0, x0+heatmapSpacing, y0, v1, level);
+          else if (e1 === 1) pB = interpolateIso(x0+heatmapSpacing, y0, v1, x0+heatmapSpacing, y0+heatmapSpacing, v2, level);
+          else if (e1 === 2) pB = interpolateIso(x0+heatmapSpacing, y0+heatmapSpacing, v2, x0, y0+heatmapSpacing, v3, level);
+          else if (e1 === 3) pB = interpolateIso(x0, y0+heatmapSpacing, v3, x0, y0, v0, level);
+
+          line(pA.x, pA.y, pB.x, pB.y);
+        }
+      }
     }
   }
+}
+
+// ==========================
+// FIELD PROBE
+// ==========================
+function drawFieldProbe() {
+  if (!probePos) return;
+
+  let E = computeElectricFieldAtPoint(probePos.x, probePos.y);
+  let V = computeElectricPotentialAtPoint(probePos.x, probePos.y);
+
+  // Probe marker
+  stroke(255);
+  strokeWeight(1.5);
+  noFill();
+  circle(probePos.x, probePos.y, 10);
+
+  // Field arrow
+  let dir = E.copy();
+  let mag = dir.mag();
+  if (mag > 0) dir.normalize();
+
+  dir.mult(30);
+
+  line(
+    probePos.x,
+    probePos.y,
+    probePos.x + dir.x,
+    probePos.y + dir.y
+  );
+
+  // Arrow head
+  push();
+  translate(probePos.x + dir.x, probePos.y + dir.y);
+  rotate(atan2(dir.y, dir.x));
+  line(0, 0, -6, -3);
+  line(0, 0, -6, 3);
+  pop();
+
+  // Readout
+  noStroke();
+  fill(255);
+  textSize(12);
+  textAlign(LEFT, TOP);
+  text(
+    `E = (${E.x.toFixed(2)}, ${E.y.toFixed(2)})\n|E| = ${mag.toFixed(2)}\nV = ${V.toFixed(2)}`,
+    probePos.x + 12,
+    probePos.y + 12
+  );
 }
 
 
@@ -239,15 +478,44 @@ function draw() {
 
   if (!hasPlacedParticle) drawOverlayInstruction();
 
-  if (showElectricField) drawElectricField();
-  if (showFieldLines) drawFieldLines();
+  // Recompute potential grid if needed (for heatmap or equipotentials)
+  if (showElectricHeatmap || showEquipotentials) {
+    recomputePotentialGrid();
+  }
 
+  // Draw heatmap in the background
+  if (showElectricHeatmap) {
+    drawElectricPotentialHeatmap();
+  }
+
+  // Draw vector field on top of heatmap
+  if (showElectricField) {
+    drawElectricField();
+  }
+
+  // Draw field lines
+  if (showFieldLines) {
+    drawFieldLines();
+  }
+
+  // Draw equipotential contours
+  if (showEquipotentials) {
+    drawEquipotentialContours();
+  }
+
+  // Apply Coulomb forces and update particles
   applyCoulombForces();
 
   for (let p of particles) {
     p.update();
     p.draw();
   }
+
+  // Draw field probe on top
+if (showFieldProbe) {
+  drawFieldProbe();
+}
+
 
   updateInfoPanel();
 }
@@ -284,18 +552,52 @@ function bindUI() {
     particles = [];
   };
 
+  // Toggle Electric Field Vectors
   const fieldBtn = document.getElementById("toggle-field");
   fieldBtn.onclick = () => {
     showElectricField = !showElectricField;
     fieldBtn.classList.toggle("active", showElectricField);
   };
 
+  // Toggle Electric Field Lines
   const lineBtn = document.getElementById("toggle-lines");
   lineBtn.onclick = () => {
     showFieldLines = !showFieldLines;
     lineBtn.classList.toggle("active", showFieldLines);
   };
 
+  // Toggle Electric Potential Heatmap
+  const heatmapBtn = document.getElementById("toggle-heatmap");
+  heatmapBtn.onclick = () => {
+    showElectricHeatmap = !showElectricHeatmap;
+    heatmapBtn.classList.toggle("active", showElectricHeatmap);
+  };
+
+  // Toggle Equipotential Contours (guarded in case button not added yet)
+  const equipBtn = document.getElementById("toggle-equip");
+  if (equipBtn) {
+    equipBtn.onclick = () => {
+      showEquipotentials = !showEquipotentials;
+      equipBtn.classList.toggle("active", showEquipotentials);
+    };
+  }
+
+  // Toggle Field Probe
+const probeBtn = document.getElementById("toggle-probe");
+if (probeBtn) {
+  probeBtn.onclick = () => {
+    showFieldProbe = !showFieldProbe;
+    probeBtn.classList.toggle("active", showFieldProbe);
+
+    // Clear probe when disabled
+    if (!showFieldProbe) {
+      probePos = null;
+    }
+  };
+}
+
+
+  // Sliders for physics parameters
   const sliderK = document.getElementById("slider-k");
   sliderK.oninput = () => {
     kCoulomb = Number(sliderK.value);
@@ -311,7 +613,7 @@ function bindUI() {
 
   const sliderMinDist = document.getElementById("slider-minDist");
   sliderMinDist.oninput = () => {
-    minDistance = Number(sliderMinDist.value);
+    minDistance = Number(sliderMinDist).value;
     document.getElementById("value-minDist").innerText = minDistance;
   };
 }
@@ -350,6 +652,12 @@ function highlightActiveTool() {
 // MOUSE INTERACTION
 // ==========================
 function mousePressed() {
+  // Field probe placement
+if (showFieldProbe && mouseInCanvas()) {
+  probePos = createVector(mouseX, mouseY);
+  return;
+}
+
   if (!mouseInCanvas()) return;
 
   if (activeTool === "addPlus") {
@@ -431,7 +739,7 @@ function updateInfoPanel() {
     addRandom: "Add Random Charge",
     select: "Select / Move",
     erase: "Erase"
-  }[activeTool]) || "None";
+  }[activeTool]) || (showFieldProbe ? "Field Probe" : "None");
 
   document.getElementById("info-tool").innerText =
     "Active Tool: " + toolName;
