@@ -613,7 +613,7 @@ if (probeBtn) {
 
   const sliderMinDist = document.getElementById("slider-minDist");
   sliderMinDist.oninput = () => {
-    minDistance = Number(sliderMinDist).value;
+    minDistance = Number(sliderMinDist.value);
     document.getElementById("value-minDist").innerText = minDistance;
   };
 }
