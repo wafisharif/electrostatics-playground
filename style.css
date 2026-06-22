@@ -1,24 +1,23 @@
 /* ==============================
    GLOBAL PAGE LAYOUT
 ================================*/
-
 body {
     margin: 0;
     padding: 0;
     display: flex;
     flex-direction: row;
     height: 100vh;
-    background: #05070a;
-    color: #e5e5e5;
-    font-family: system-ui, sans-serif;
+    background: #121212;
+    color: #e0e0e0;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     overflow: hidden;
 }
 
 /* Left Toolbar */
 #toolbar-left {
     width: 200px;
-    background: #0c0f13;
-    border-right: 1px solid #1a1f27;
+    background: #1e1e1e;
+    border-right: 1px solid #2a2a2a;
     display: flex;
     flex-direction: column;
     padding: 15px;
@@ -26,15 +25,15 @@ body {
 
 .toolbar-title {
     font-size: 14px;
-    font-weight: 600;
+    font-weight: bold;
     margin-bottom: 10px;
-    color: #9ba4b4;
+    color: #90caf9;
 }
 
 .toolbar-separator {
     width: 100%;
     height: 1px;
-    background: #242a33;
+    background: #2a2a2a;
     margin: 12px 0;
 }
 
@@ -43,32 +42,37 @@ body {
     width: 100%;
     padding: 10px;
     margin-bottom: 8px;
-    background: #14181f;
-    color: #ffffff;
-    border: 1px solid #1f242d;
+    background: #2a2a2a;
+    color: #e0e0e0;
+    border: 1px solid #333;
+    border-radius: 6px;
     cursor: pointer;
     text-align: left;
     font-size: 13px;
-    transition: background 0.1s, border-color 0.1s;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out;
 }
 
 .tool-btn:hover {
-    background: #1c212a;
-    border-color: #2c3644;
+    background: #64b5f6;
+    color: #121212;
+    border-color: #64b5f6;
 }
 
 .tool-btn.active {
-    background: #243043;
-    border-color: #376195;
+    background: #64b5f6;
+    color: #121212;
+    border-color: #90caf9;
 }
 
 .tool-btn.danger {
-    color: #ff7373;
-    border-color: #933636;
+    color: #f6c177;
+    border-color: #5a4a26;
 }
-
 .tool-btn.danger:hover {
-    background: #2a1212;
+    background: #3a2f1c;
+    color: #f6c177;
+    border-color: #f6c177;
 }
 
 /* Canvas Area */
@@ -80,15 +84,16 @@ body {
 /* Right Controls Panel */
 #controls-right {
     width: 260px;
-    background: #0c0f13;
-    border-left: 1px solid #1a1f27;
+    background: #1e1e1e;
+    border-left: 1px solid #2a2a2a;
     padding: 15px;
     overflow-y: auto;
 }
 
 .controls-title {
-    color: #9ba4b4;
+    color: #90caf9;
     font-size: 14px;
+    font-weight: bold;
     margin: 15px 0 10px;
 }
 
@@ -98,31 +103,36 @@ body {
 
 label {
     font-size: 13px;
+    font-weight: bold;
+    color: #bbb;
+    display: block;
+    margin-bottom: 6px;
 }
 
 input[type="range"] {
     width: 100%;
+    accent-color: #64b5f6;
+    background-color: #333;
+    border-radius: 4px;
 }
 
 .info-block {
     font-size: 13px;
+    color: #ccc;
     margin-bottom: 6px;
 }
-
-
 
 /* ===========================================
    FIXED CANVAS INTERACTION LAYER
    Ensures the canvas receives mouse input
 =========================================== */
-
 #canvas-container {
     position: relative;
     z-index: 10;
 }
-
 #canvas-container canvas {
     position: relative;
     z-index: 9999;
     pointer-events: auto;
+    border-radius: 0;
 }
